@@ -48,12 +48,13 @@ def summarize_paper(title, abstract):
             messages=[
                 {"role": "system", "content": "You are a helpful assistant that summarizes research papers."},
                 {"role": "user", "content": prompt}
-        ],
-    model="gpt-4o-mini",
-    #response_format={"type": "json_object"},
-)
+            ],
+            model="gpt-4o-mini",
+            #response_format={"type": "json_object"},
+        )
         # Extract and return the content of the assistant's response
         return chat_completion.choices[0].message.content.strip()
+    
     except Exception as e:
         return f"Error summarizing paper: {str(e)}"
 
