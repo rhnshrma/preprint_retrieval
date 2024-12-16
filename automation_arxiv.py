@@ -150,9 +150,9 @@ for index, row in df.iterrows():
                 summarized[entry['doi']] = entry
             else:
                 summary = summarized[entry['doi']]['summary']
-            email_content += f"<h2>{entry['title']}</h2>"
+            email_content += f"<h2><a href='https://doi.org/{entry['doi']}'>{entry['title']}</a></h2>"
             email_content += f"<p>{summary}</p>"
-            email_content += f"<p><a href='https://doi.org/{entry['doi']}'>Read more</a></p>"
+            #email_content += f"<p><a href='https://doi.org/{entry['doi']}'>Read more</a></p>"
 
     # Create the email message
 
