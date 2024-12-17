@@ -148,47 +148,46 @@ not_contains = ["cancer", "tumor"]
 summarized = {}
 
 for index, row in df.iterrows():
-    if index==2:
-        email_content = "<h1>BioRxiv Neuroscience Abstracts and Titles</h1>"
-        add = "No entries found that meet your criteria"
+    email_content = "<h1>BioRxiv Neuroscience Abstracts and Titles</h1>"
+    add = "No entries found that meet your criteria"
 
-        if pd.isnull(row['Contains (comma separated)']): contains = []
-        else: contains = [x.strip().lower() for x in row['Contains (comma separated)'].split(',')]
+    if pd.isnull(row['Contains (comma separated)']): contains = []
+    else: contains = [x.strip().lower() for x in row['Contains (comma separated)'].split(',')]
 
-        if pd.isnull(row['Not contains (comma separated)']): not_contains = []
-        else: not_contains = [x.strip().lower() for x in  row['Not contains (comma separated)'].split(',')]
+    if pd.isnull(row['Not contains (comma separated)']): not_contains = []
+    else: not_contains = [x.strip().lower() for x in  row['Not contains (comma separated)'].split(',')]
 
-        for entry in neuro_entries:
-            if filters(contains, not_contains, entry['title'], entry['abstract']):
-                add = ""
-                if entry['doi'] not in summarized:
-                    summary = summarize_paper(entry['title'], entry['abstract'])
-                    entry['summary'] = summary
-                    summarized[entry['doi']] = entry
-                else:
-                    summary = summarized[entry['doi']]['summary']
-                email_content += f"<h2><a href='https://doi.org/{entry['doi']}'>{entry['title']}</a></h2>"
-                email_content += f"<p>{summary}</p>"
-                #email_content += f"<p><a href='https://doi.org/{entry['doi']}'>Read more</a></p>"
-        email_content += f"<p>{add}</p>"
-        # Create the email message
+    for entry in neuro_entries:
+        if filters(contains, not_contains, entry['title'], entry['abstract']):
+            add = ""
+            if entry['doi'] not in summarized:
+                summary = summarize_paper(entry['title'], entry['abstract'])
+                entry['summary'] = summary
+                summarized[entry['doi']] = entry
+            else:
+                summary = summarized[entry['doi']]['summary']
+            email_content += f"<h2><a href='https://doi.org/{entry['doi']}'>{entry['title']}</a></h2>"
+            email_content += f"<p>{summary}</p>"
+            #email_content += f"<p><a href='https://doi.org/{entry['doi']}'>Read more</a></p>"
+    email_content += f"<p>{add}</p>"
+    # Create the email message
 
-        msg = MIMEMultipart()
-        msg['From'] = from_email
-        msg['To'] = row['Email']
-        msg['Subject'] = subject
-        msg.attach(MIMEText(email_content, 'html'))
-        to_email = row['Email']
-        # Send the email
-        try:
-            server = smtplib.SMTP(smtp_server, smtp_port)
-            server.starttls()
-            server.login(smtp_user, smtp_password)
-            server.sendmail(from_email, to_email, msg.as_string())
-            server.quit()
-            logger.info(f"Email sent successfully to {to_email}")
-        except Exception as e:
-            logger.info(f"Failed to send email: {e}")
+    msg = MIMEMultipart()
+    msg['From'] = from_email
+    msg['To'] = row['Email']
+    msg['Subject'] = subject
+    msg.attach(MIMEText(email_content, 'html'))
+    to_email = row['Email']
+    # Send the email
+    try:
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(smtp_user, smtp_password)
+        server.sendmail(from_email, to_email, msg.as_string())
+        server.quit()
+        logger.info(f"Email sent successfully to {to_email}")
+    except Exception as e:
+        logger.info(f"Failed to send email: {e}")
 
 
 ###########################################for arxiv######################################################################
@@ -231,7 +230,7 @@ for index, row in df.iterrows():
         server = smtplib.SMTP(smtp_server, smtp_port)
         server.starttls()
         server.login(smtp_user, smtp_password)
-        #server.sendmail(from_email, to_email, msg.as_string())
+        server.sendmail(from_email, to_email, msg.as_string())
         server.quit()
         logger.info(f"Email sent successfully to {to_email}")
     except Exception as e:
