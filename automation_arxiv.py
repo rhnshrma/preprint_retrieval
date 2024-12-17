@@ -91,8 +91,7 @@ end_date = today  # Modify this for a range if needed
 base_url = "https://api.biorxiv.org/details/biorxiv"
 query_url = f"{base_url}/{start_date}/{end_date}/"
 
-# Make the API request
-print(query_url)
+
 # Initialize variables
 cursor, total = 0, 0
 all_entries = []
@@ -101,10 +100,12 @@ while True:
     # Construct the API URL with the current cursor
     url = f"{query_url}{str(cursor)}"
     logger.info(f"Querying {url}")
+    
     # Make the API request
     response = requests.get(url)
     data = response.json()
-    print(data)
+    #print(data)
+    
     # Extract the total number of entries and the current batch of entries
     try:
         total = int(data['messages'][0]['total'])
@@ -117,11 +118,12 @@ while True:
     
     # Update the cursor for the next batch
     cursor += len(entries)
-    print(cursor)
+
     # Check if we have collected all entries
     if cursor >= total:
         break
 
+#filter for neuro entries
 neuro_entries = []
 for entries in all_entries:
     if 'neuro' in entries['category'].lower():
@@ -144,7 +146,13 @@ summarized = {}
 
 for index, row in df.iterrows():
     email_content = "<h1>BioRxiv Neuroscience Abstracts and Titles</h1>"
-    contains, not_contains = [x.strip() for x in row['Contains (comma separated)'].split(',')], [x.strip() for x in  row['Not contains (comma separated)'].split(',')]
+
+    if pd.isnull(row['Contains (comma separated)']): contains = []
+    else: contains = [x.strip() for x in row['Contains (comma separated)'].split(',')]
+
+    if pd.isnull(row['Not contains (comma separated)']): not_contains = []
+    else: not_contains = [x.strip() for x in  row['Not contains (comma separated)'].split(',')]
+
     for entry in neuro_entries:
         if filters(contains, not_contains, entry['title'], entry['abstract']):
             if entry['doi'] not in summarized:
@@ -170,7 +178,7 @@ for index, row in df.iterrows():
         server = smtplib.SMTP(smtp_server, smtp_port)
         server.starttls()
         server.login(smtp_user, smtp_password)
-        server.sendmail(from_email, to_email, msg.as_string())
+        #server.sendmail(from_email, to_email, msg.as_string())
         server.quit()
         #print("Email sent successfully to ", to_email)
         logger.info(f"Email sent successfully to {to_email}")
@@ -191,7 +199,7 @@ query_url = f"{base_url}[{start_date}0600+TO+{end_date}0600]&max_results=100"
 sheet_url = os.getenv("arxiv_sheet_url")
 #csv_export_url = sheet_url.replace('/edit#gid=', '/export?format=csv&gid=')
 df = pd.read_csv(sheet_url)
-print(df)
+
 for index, row in df.iterrows():
     email_content = "<h1>Arxiv Neutrino papers summary from yesterday</h1>"
     #contains, not_contains = [x.strip() for x in row['Contains (comma separated)'].split(',')], [x.strip() for x in  row['Not contains (comma separated)'].split(',')]
@@ -219,7 +227,7 @@ for index, row in df.iterrows():
         server.starttls()
         server.login(smtp_user, smtp_password)
         #print(msg.as_string())
-        server.sendmail(from_email, to_email, msg.as_string())
+        #server.sendmail(from_email, to_email, msg.as_string())
         server.quit()
         #print("Email sent successfully to ", to_email)
         logger.info(f"Email sent successfully to {to_email}")
