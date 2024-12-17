@@ -65,8 +65,11 @@ def filters(positive, negative, title, abstract):
     """
     title = title.lower()
     abstract = abstract.lower()
-    if any(pos in title or pos in abstract for pos in positive) and not any(neg in title or neg in abstract for neg in negative):
-        return True
+    for pos in positive:
+        keywords = pos.split('&')
+        if all(keyword in title or keyword in abstract for keyword in keywords):
+            if not any(neg in title or neg in abstract for neg in negative):
+                return True
     return False
 
 # Log the start of the script
@@ -128,7 +131,7 @@ neuro_entries = []
 for entries in all_entries:
     if 'neuro' in entries['category'].lower():
         neuro_entries.append(entries)
-
+logger.info(f"Found {len(neuro_entries)} neuro entries")
 
 csv_export_url = sheet_url.replace('/edit#gid=', '/export?format=csv&gid=')
 df = pd.read_csv(csv_export_url)
@@ -145,49 +148,51 @@ not_contains = ["cancer", "tumor"]
 summarized = {}
 
 for index, row in df.iterrows():
-    email_content = "<h1>BioRxiv Neuroscience Abstracts and Titles</h1>"
+    if index==2:
+        email_content = "<h1>BioRxiv Neuroscience Abstracts and Titles</h1>"
+        add = "No entries found that meet your criteria"
 
-    if pd.isnull(row['Contains (comma separated)']): contains = []
-    else: contains = [x.strip() for x in row['Contains (comma separated)'].split(',')]
+        if pd.isnull(row['Contains (comma separated)']): contains = []
+        else: contains = [x.strip().lower() for x in row['Contains (comma separated)'].split(',')]
 
-    if pd.isnull(row['Not contains (comma separated)']): not_contains = []
-    else: not_contains = [x.strip() for x in  row['Not contains (comma separated)'].split(',')]
+        if pd.isnull(row['Not contains (comma separated)']): not_contains = []
+        else: not_contains = [x.strip().lower() for x in  row['Not contains (comma separated)'].split(',')]
 
-    for entry in neuro_entries:
-        if filters(contains, not_contains, entry['title'], entry['abstract']):
-            if entry['doi'] not in summarized:
-                summary = summarize_paper(entry['title'], entry['abstract'])
-                entry['summary'] = summary
-                summarized[entry['doi']] = entry
-            else:
-                summary = summarized[entry['doi']]['summary']
-            email_content += f"<h2><a href='https://doi.org/{entry['doi']}'>{entry['title']}</a></h2>"
-            email_content += f"<p>{summary}</p>"
-            #email_content += f"<p><a href='https://doi.org/{entry['doi']}'>Read more</a></p>"
+        for entry in neuro_entries:
+            if filters(contains, not_contains, entry['title'], entry['abstract']):
+                add = ""
+                if entry['doi'] not in summarized:
+                    summary = summarize_paper(entry['title'], entry['abstract'])
+                    entry['summary'] = summary
+                    summarized[entry['doi']] = entry
+                else:
+                    summary = summarized[entry['doi']]['summary']
+                email_content += f"<h2><a href='https://doi.org/{entry['doi']}'>{entry['title']}</a></h2>"
+                email_content += f"<p>{summary}</p>"
+                #email_content += f"<p><a href='https://doi.org/{entry['doi']}'>Read more</a></p>"
+        email_content += f"<p>{add}</p>"
+        # Create the email message
 
-    # Create the email message
-
-    msg = MIMEMultipart()
-    msg['From'] = from_email
-    msg['To'] = row['Email']
-    msg['Subject'] = subject
-    msg.attach(MIMEText(email_content, 'html'))
-    to_email = row['Email']
-    # Send the email
-    try:
-        server = smtplib.SMTP(smtp_server, smtp_port)
-        server.starttls()
-        server.login(smtp_user, smtp_password)
-        #server.sendmail(from_email, to_email, msg.as_string())
-        server.quit()
-        #print("Email sent successfully to ", to_email)
-        logger.info(f"Email sent successfully to {to_email}")
-    except Exception as e:
-        logger.info(f"Failed to send email: {e}")
+        msg = MIMEMultipart()
+        msg['From'] = from_email
+        msg['To'] = row['Email']
+        msg['Subject'] = subject
+        msg.attach(MIMEText(email_content, 'html'))
+        to_email = row['Email']
+        # Send the email
+        try:
+            server = smtplib.SMTP(smtp_server, smtp_port)
+            server.starttls()
+            server.login(smtp_user, smtp_password)
+            server.sendmail(from_email, to_email, msg.as_string())
+            server.quit()
+            logger.info(f"Email sent successfully to {to_email}")
+        except Exception as e:
+            logger.info(f"Failed to send email: {e}")
 
 
 ###########################################for arxiv######################################################################
-## Query bioarxiv 24 hours
+## Query arxiv for 24 hours
 # Get today's date
 today = datetime.today().strftime('%Y%m%d')
 yesterday = (datetime.today() - timedelta(days=1)).strftime('%Y%m%d')
@@ -210,7 +215,7 @@ for index, row in df.iterrows():
     else:
         for entry in feed.entries:
             summary = summarize_paper(entry.title.value, entry.summary.value)
-            email_content += f"<h2>{entry.title.value}</h2>"
+            email_content += f"<h2><a href='{feed.entries[0].links[0].href}'>{entry.title.value}</a></h2>"
             email_content += f"<p>{summary}</p>"
             #email_content += f"<p><a href='{entry['id']}'>Read more</a></p>"
 
@@ -226,10 +231,8 @@ for index, row in df.iterrows():
         server = smtplib.SMTP(smtp_server, smtp_port)
         server.starttls()
         server.login(smtp_user, smtp_password)
-        #print(msg.as_string())
         #server.sendmail(from_email, to_email, msg.as_string())
         server.quit()
-        #print("Email sent successfully to ", to_email)
         logger.info(f"Email sent successfully to {to_email}")
     except Exception as e:
         logger.info(f"Failed to send email: {e}")
