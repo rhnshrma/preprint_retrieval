@@ -1,4 +1,4 @@
-import arxiv, logging
+import arxiv, logging, atoma
 from biorxiv_retriever import BiorxivRetriever
 from datetime import datetime, timedelta
 import os
@@ -41,7 +41,7 @@ def summarize_paper(title, abstract):
     """
     Summarizes the title and abstract of a paper using OpenAI's Chat API.
     """
-    prompt = f"Summarize the following research paper. Keep summary concie with only 2 to 3 lines and write form author's perspective:\nTitle: {title}\nAbstract: {abstract}\nSummary: \n\n"
+    prompt = f"Summarize the following research paper. Keep summary concie with only 2 to 3 lines:\nTitle: {title}\nAbstract: {abstract}\nSummary: \n\n"
     print(title)
     try:
         chat_completion = client.chat.completions.create(
@@ -94,7 +94,7 @@ query_url = f"{base_url}/{start_date}/{end_date}/"
 # Make the API request
 print(query_url)
 # Initialize variables
-cursor = 0
+cursor, total = 0, 0
 all_entries = []
 
 while True:
@@ -104,9 +104,12 @@ while True:
     # Make the API request
     response = requests.get(url)
     data = response.json()
-    
+    print(data)
     # Extract the total number of entries and the current batch of entries
-    total = int(data['messages'][0]['total'])
+    try:
+        total = int(data['messages'][0]['total'])
+    except:
+        break
     entries = data['collection']
     
     # Add the current batch of entries to the list of all entries
@@ -172,7 +175,56 @@ for index, row in df.iterrows():
         #print("Email sent successfully to ", to_email)
         logger.info(f"Email sent successfully to {to_email}")
     except Exception as e:
-        print(f"Failed to send email: {e}")
+        logger.info(f"Failed to send email: {e}")
+
+
+###########################################for arxiv######################################################################
+## Query bioarxiv 24 hours
+# Get today's date
+today = datetime.today().strftime('%Y%m%d')
+yesterday = (datetime.today() - timedelta(days=1)).strftime('%Y%m%d')
+# Example of a range of dates (1-week range)
+start_date = yesterday
+end_date = today  # Modify this for a range if needed
+base_url = 'https://export.arxiv.org/api/query?search_query=%28all:neurtinos+OR+all:neutrino%29+AND+submittedDate:'
+query_url = f"{base_url}[{start_date}0600+TO+{end_date}0600]&max_results=100"
+sheet_url = os.getenv("arxiv_sheet_url")
+#csv_export_url = sheet_url.replace('/edit#gid=', '/export?format=csv&gid=')
+df = pd.read_csv(sheet_url)
+print(df)
+for index, row in df.iterrows():
+    email_content = "<h1>Arxiv Neutrino papers summary from yesterday</h1>"
+    #contains, not_contains = [x.strip() for x in row['Contains (comma separated)'].split(',')], [x.strip() for x in  row['Not contains (comma separated)'].split(',')]
+    response_req = requests.get(query_url)
+    feed = atoma.parse_atom_bytes(response_req.content)
+    if len(feed.entries) == 0:
+        email_content += "No papers found"
+    else:
+        for entry in feed.entries:
+            summary = summarize_paper(entry.title.value, entry.summary.value)
+            email_content += f"<h2>{entry.title.value}</h2>"
+            email_content += f"<p>{summary}</p>"
+            #email_content += f"<p><a href='{entry['id']}'>Read more</a></p>"
+
+    # Create the email message
+    msg = MIMEMultipart()
+    msg['From'] = from_email
+    msg['To'] = row['Email']
+    msg['Subject'] = subject
+    msg.attach(MIMEText(email_content, 'html'))
+    to_email = row['Email']
+    # Send the email
+    try:
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(smtp_user, smtp_password)
+        #print(msg.as_string())
+        server.sendmail(from_email, to_email, msg.as_string())
+        server.quit()
+        #print("Email sent successfully to ", to_email)
+        logger.info(f"Email sent successfully to {to_email}")
+    except Exception as e:
+        logger.info(f"Failed to send email: {e}")
 
 
 # Log the end of the script
