@@ -36,6 +36,9 @@ smtp_user = os.getenv("ID")
 from_email = smtp_user
 smtp_password = os.getenv("pawd")
 
+# configure the biorxiv retriever
+testing = True
+testing_ids = ['1810.rohan@gmail.com']
 # Define a function to use ChatGPT (gpt-3.5-turbo or gpt-4)
 def summarize_paper(title, abstract):
     """
@@ -167,6 +170,7 @@ for index, row in df.iterrows():
             else:
                 summary = summarized[entry['doi']]['summary']
             email_content += f"<h2><a href='https://doi.org/{entry['doi']}'>{entry['title']}</a></h2>"
+            email_content += f"<p style='font-size:small; color:gray;'>Authors: {entry['authors']}</p>"
             email_content += f"<p>{summary}</p>"
             #email_content += f"<p><a href='https://doi.org/{entry['doi']}'>Read more</a></p>"
     email_content += f"<p>{add}</p>"
@@ -183,9 +187,15 @@ for index, row in df.iterrows():
         server = smtplib.SMTP(smtp_server, smtp_port)
         server.starttls()
         server.login(smtp_user, smtp_password)
-        server.sendmail(from_email, to_email, msg.as_string())
+        if testing:
+            if to_email in testing_ids: 
+                server.sendmail(from_email, to_email, msg.as_string())
+                logger.info(f"Email sent successfully to {to_email}")
+            else: 
+                logger.info(f"Email not sent to {to_email}")
+        else:
+            server.sendmail(from_email, to_email, msg.as_string())
         server.quit()
-        logger.info(f"Email sent successfully to {to_email}")
     except Exception as e:
         logger.info(f"Failed to send email: {e}")
 
@@ -230,9 +240,15 @@ for index, row in df.iterrows():
         server = smtplib.SMTP(smtp_server, smtp_port)
         server.starttls()
         server.login(smtp_user, smtp_password)
-        server.sendmail(from_email, to_email, msg.as_string())
+        if testing:
+            if to_email in testing_ids: 
+                server.sendmail(from_email, to_email, msg.as_string())
+                logger.info(f"Email sent successfully to {to_email}")
+            else: 
+                logger.info(f"Email not sent to {to_email}")
+        else:
+            server.sendmail(from_email, to_email, msg.as_string())
         server.quit()
-        logger.info(f"Email sent successfully to {to_email}")
     except Exception as e:
         logger.info(f"Failed to send email: {e}")
 
