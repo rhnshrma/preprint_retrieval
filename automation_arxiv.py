@@ -37,7 +37,7 @@ from_email = smtp_user
 smtp_password = os.getenv("pawd")
 
 # configure the biorxiv retriever
-testing = True
+testing = False
 testing_ids = ['1810.rohan@gmail.com']
 # Define a function to use ChatGPT (gpt-3.5-turbo or gpt-4)
 def summarize_paper(title, abstract):
@@ -170,7 +170,7 @@ for index, row in df.iterrows():
             else:
                 summary = summarized[entry['doi']]['summary']
             email_content += f"<h2><a href='https://doi.org/{entry['doi']}'>{entry['title']}</a></h2>"
-            email_content += f"<p style='font-size:small; color:gray;'>Authors: {entry['authors']}</p>"
+            email_content += f"<p style='font-size:small; color:gray;'>{entry['authors']}</p>"
             email_content += f"<p>{summary}</p>"
             #email_content += f"<p><a href='https://doi.org/{entry['doi']}'>Read more</a></p>"
     email_content += f"<p>{add}</p>"
