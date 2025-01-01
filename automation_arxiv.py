@@ -38,7 +38,7 @@ smtp_password = os.getenv("pawd")
 
 # configure the biorxiv retriever
 testing = False
-testing_ids = ['1810.rohan@gmail.com']
+testing_ids = ['1810.rohan@gmail.com'] #['1810.rohan@gmail.com','oreki0chitanda@gmail.com']
 # Define a function to use ChatGPT (gpt-3.5-turbo or gpt-4)
 def summarize_paper(title, abstract):
     """
@@ -161,7 +161,7 @@ for index, row in df.iterrows():
     else: not_contains = [x.strip().lower() for x in  row['Not contains (comma separated)'].split(',')]
 
     for entry in neuro_entries:
-        if filters(contains, not_contains, entry['title'], entry['abstract']):
+        if filters(contains, not_contains, entry['title'], entry['abstract']) or not contains:
             add = ""
             if entry['doi'] not in summarized:
                 summary = summarize_paper(entry['title'], entry['abstract'])
