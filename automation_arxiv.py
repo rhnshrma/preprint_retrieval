@@ -10,6 +10,7 @@ from email.mime.text import MIMEText
 import pandas as pd
 from io import BytesIO
 from logging.handlers import TimedRotatingFileHandler
+from ollama import Client
 
 load_dotenv()  # take environment variables from .env
 
@@ -39,27 +40,58 @@ smtp_password = os.getenv("pawd")
 # configure the biorxiv retriever
 testing = False
 testing_ids = ['1810.rohan@gmail.com'] #['1810.rohan@gmail.com','oreki0chitanda@gmail.com']
+
+
+# Log the start of the script
+logger.info("Script started")
+
+client_opai = OpenAI(
+    api_key=os.environ.get("OPENAI_API_KEY"),  # This is the default and can be omitted
+)
+
+client_llama = Client(
+    host='http://192.168.8.68:11434',
+    headers={'x-some-header': 'some-value'}
+)
+
+llm = "llama3.2"
+
 # Define a function to use ChatGPT (gpt-3.5-turbo or gpt-4)
-def summarize_paper(title, abstract):
+def summarize_paper(title, abstract,model='gpt-4o-mini'):
     """
     Summarizes the title and abstract of a paper using OpenAI's Chat API.
     """
-    prompt = f"Summarize the following research paper. Keep summary concie with only 2 to 3 lines:\nTitle: {title}\nAbstract: {abstract}\nSummary: \n\n"
-    print(title)
-    try:
-        chat_completion = client.chat.completions.create(
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant that summarizes research papers."},
-                {"role": "user", "content": prompt}
-            ],
-            model="gpt-4o-mini",
-            #response_format={"type": "json_object"},
-        )
-        # Extract and return the content of the assistant's response
-        return chat_completion.choices[0].message.content.strip()
-    
-    except Exception as e:
-        return f"Error summarizing paper: {str(e)}"
+    prompt = f"Summarize the following research paper. Keep summary concise with only 2 to 3 lines:\nTitle: {title}\nAbstract: {abstract}\nSummary: \n\n"
+    logger.info(title)
+    if model=='gpt-4o-mini':
+        try:
+            chat_completion = client_opai.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant that summarizes research papers."},
+                    {"role": "user", "content": prompt}
+                ],
+                model="gpt-4o-mini",
+                #response_format={"type": "json_object"},
+            )
+            # Extract and return the content of the assistant's response
+            return chat_completion.choices[0].message.content.strip()
+        
+        except Exception as e:
+            logger.error(f"Error summarizing paper: {str(e)}")
+            return f"Error summarizing paper: {str(e)}"
+    elif model=="llama3.2":
+        try:
+            response = client_llama.chat(model='llama3.2', messages=[
+                {
+                    'role': 'user',
+                    'content': prompt,
+                },
+                ])
+            return response.message.content
+        except Exception as e:
+            logger.error(f"Error summarizing paper: {str(e)}")
+            return f"Error summarizing paper: {str(e)}"
+    else: return "Model not found"
 
 
 def filters(positive, negative, title, abstract):
@@ -75,12 +107,6 @@ def filters(positive, negative, title, abstract):
                 return True
     return False
 
-# Log the start of the script
-logger.info("Script started")
-
-client = OpenAI(
-    api_key=os.environ.get("OPENAI_API_KEY"),  # This is the default and can be omitted
-)
 
 ## Query bioarxiv 24 hours
 # Get today's date
@@ -151,7 +177,7 @@ not_contains = ["cancer", "tumor"]
 summarized = {}
 
 for index, row in df.iterrows():
-    email_content = "<h1>BioRxiv Neuroscience Abstracts and Titles</h1>"
+    email_content = "<h1>BioRxiv Neuroscience</h1>"
     add = "No entries found that meet your criteria"
 
     if pd.isnull(row['Contains (comma separated)']): contains = []
@@ -164,7 +190,7 @@ for index, row in df.iterrows():
         if filters(contains, not_contains, entry['title'], entry['abstract']) or not contains:
             add = ""
             if entry['doi'] not in summarized:
-                summary = summarize_paper(entry['title'], entry['abstract'])
+                summary = summarize_paper(entry['title'], entry['abstract'],model=llm)
                 entry['summary'] = summary
                 summarized[entry['doi']] = entry
             else:
@@ -195,6 +221,7 @@ for index, row in df.iterrows():
                 logger.info(f"Email not sent to {to_email}")
         else:
             server.sendmail(from_email, to_email, msg.as_string())
+            logger.info(f"Email sent successfully to {to_email}")
         server.quit()
     except Exception as e:
         logger.info(f"Failed to send email: {e}")
@@ -223,7 +250,7 @@ for index, row in df.iterrows():
         email_content += "No papers found"
     else:
         for entry in feed.entries:
-            summary = summarize_paper(entry.title.value, entry.summary.value)
+            summary = summarize_paper(entry.title.value, entry.summary.value,model=llm)
             email_content += f"<h2><a href='{feed.entries[0].links[0].href}'>{entry.title.value}</a></h2>"
             email_content += f"<p>{summary}</p>"
             #email_content += f"<p><a href='{entry['id']}'>Read more</a></p>"
@@ -248,6 +275,7 @@ for index, row in df.iterrows():
                 logger.info(f"Email not sent to {to_email}")
         else:
             server.sendmail(from_email, to_email, msg.as_string())
+            logger.info(f"Email sent successfully to {to_email}")
         server.quit()
     except Exception as e:
         logger.info(f"Failed to send email: {e}")
