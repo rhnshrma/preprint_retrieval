@@ -28,8 +28,7 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 logger.addHandler(log_handler)
 
-sheet_url = "https://docs.google.com/spreadsheets/d/1so95YlEVJmGjh8HPhEUPcp158HGPciyBldRq9DDsZ78/edit#gid=0"
-
+sheet_url = os.getenv("sheet_url")
 # Email configuration
 smtp_server = "smtp.gmail.com"
 smtp_port = 587
@@ -54,7 +53,7 @@ client_llama = Client(
     headers={'x-some-header': 'some-value'}
 )
 
-llm = "llama3.2"
+llm = "gpt-4o-mini"
 
 # Define a function to use ChatGPT (gpt-3.5-turbo or gpt-4)
 def summarize_paper(title, abstract,model='gpt-4o-mini'):
